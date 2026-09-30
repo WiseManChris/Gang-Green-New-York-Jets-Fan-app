@@ -28,7 +28,7 @@
 
 ## 📸 Screenshots
 
-*(To add screenshots, simply place your PNG files in the `screenshots/` directory and they will appear here!)*
+
 
 <div align="center">
   <img src="screenshots/live_tab.png" width="250" alt="Live Tab" />
