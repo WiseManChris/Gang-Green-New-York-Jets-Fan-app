@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GangGreen" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- This is a placeholder base theme -->
+    </style>
+
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background -->
+        <item name="windowSplashScreenBackground">#09140E</item>
+        <!-- Use an animated icon or just the app icon -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <!-- Post splash screen theme -->
+        <item name="postSplashScreenTheme">@style/Theme.GangGreen</item>
+    </style>
+</resources>

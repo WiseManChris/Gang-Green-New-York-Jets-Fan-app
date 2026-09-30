@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "799470853743",
+    "project_id": "gang-green-9d076",
+    "storage_bucket": "gang-green-9d076.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:799470853743:android:a6cf0c6ce943e14a23f79a",
+        "android_client_info": {
+          "package_name": "com.example.ganggreen"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLTdwP15ZZ-6rO-FyXtfxcVya7czH1ACs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
