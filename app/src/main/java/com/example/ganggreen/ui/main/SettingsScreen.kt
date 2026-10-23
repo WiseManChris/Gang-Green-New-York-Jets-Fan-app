@@ -17,6 +17,17 @@ import com.example.ganggreen.data.AppTheme
 import com.example.ganggreen.data.SettingsManager
 import kotlinx.coroutines.launch
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.example.ganggreen.theme.JetsGreenLight
+import com.example.ganggreen.theme.StatusRedText
+import com.example.ganggreen.theme.TextSecondary
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(settingsManager: SettingsManager) {
@@ -69,5 +80,66 @@ fun SettingsScreen(settingsManager: SettingsManager) {
             }
         }
 
-}
+        // Notifications Section
+        item {
+            val context = LocalContext.current
+            val kickoffNotificationsEnabled by settingsManager.kickoffNotificationsFlow.collectAsState(initial = true)
+            var hasNotificationPermission by remember {
+                mutableStateOf(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                    } else true
+                )
+            }
+
+            val permissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission()
+            ) { isGranted ->
+                hasNotificationPermission = isGranted
+                if (isGranted) {
+                    coroutineScope.launch { settingsManager.setKickoffNotifications(true) }
+                }
+            }
+
+            Text("Notifications", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            Card(shape = RoundedCornerShape(12.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                            Text("Kickoff & Game Start Alerts", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
+                                    "Notification permission required to receive game alerts" 
+                                else 
+                                    "Get notified the moment New York Jets games kickoff or start",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) StatusRedText else TextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = kickoffNotificationsEnabled && hasNotificationPermission,
+                            onCheckedChange = { isChecked ->
+                                if (isChecked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
+                                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    coroutineScope.launch { settingsManager.setKickoffNotifications(isChecked) }
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = JetsGreenLight
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

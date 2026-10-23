@@ -94,7 +94,8 @@ data class Competitor(
     val team: Team = Team(),
     val score: kotlinx.serialization.json.JsonElement? = null,
     val records: List<Record> = emptyList(),
-    val leaders: List<LeaderCategory>? = null
+    val leaders: List<LeaderCategory>? = null,
+    val linescores: List<Linescore> = emptyList()
 ) {
     val displayScore: String
         get() {
@@ -110,6 +111,11 @@ data class Competitor(
             }
         }
 }
+
+@Serializable
+data class Linescore(
+    val displayValue: String = ""
+)
 
 @Serializable
 data class Team(

@@ -45,46 +45,76 @@ class DataRepository {
         return espnApi.getScoreboard()
     }
 
+    fun parseGameDateToMillis(dateStr: String): Long {
+        return try {
+            var safeDateStr = dateStr
+            if (safeDateStr.count { it == ':' } == 1) {
+                safeDateStr = safeDateStr.replace("Z", ":00Z")
+            }
+            val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            format.parse(safeDateStr)?.time ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
     suspend fun getJetsEvent(): Event? {
-        val schedule = espnApi.getSchedule()
-        
         val nowMs = System.currentTimeMillis()
+
+        // 1. Check real-time scoreboard first (live updates with low TTL during game day)
+        try {
+            val scoreboard = espnApi.getScoreboard()
+            val sbJetsEvent = scoreboard.events.find { ev ->
+                ev.competitions.firstOrNull()?.competitors?.any { it.team.abbreviation == "NYJ" } == true
+            }
+            if (sbJetsEvent != null) {
+                val state = sbJetsEvent.competitions.firstOrNull()?.status?.type?.state
+                // If it is in-progress (live), ALWAYS return it immediately with live real-time scores
+                if (state == "in") {
+                    return sbJetsEvent
+                }
+                // If it is recently finished (within last 36 hours), return it
+                if (state == "post") {
+                    val dateStr = sbJetsEvent.competitions.firstOrNull()?.date ?: sbJetsEvent.date
+                    val gameTimeMs = parseGameDateToMillis(dateStr)
+                    val timeSinceGameMs = nowMs - gameTimeMs
+                    if (timeSinceGameMs in 0..(36L * 60 * 60 * 1000)) {
+                        return sbJetsEvent
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Fallback to schedule to locate upcoming or past games across the entire season
+        val schedule = espnApi.getSchedule()
         val events = schedule.events
 
-        // 1. Check for live game
+        // Check for live game in schedule
         val liveGame = events.find { it.competitions.firstOrNull()?.status?.type?.state == "in" }
         if (liveGame != null) return liveGame
 
-        // 2. Check for recently finished game (within last 36 hours)
+        // Check for recently finished game (within last 36 hours)
         val postGames = events.filter { it.competitions.firstOrNull()?.status?.type?.state == "post" }
         val lastPostGame = postGames.lastOrNull()
         if (lastPostGame != null) {
             val dateStr = lastPostGame.competitions.firstOrNull()?.date ?: lastPostGame.date
-            try {
-                var safeDateStr = dateStr
-                if (safeDateStr.count { it == ':' } == 1) {
-                    safeDateStr = safeDateStr.replace("Z", ":00Z")
-                }
-                val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
-                    timeZone = java.util.TimeZone.getTimeZone("UTC")
-                }
-                val gameTimeMs = format.parse(safeDateStr)?.time ?: 0L
-                val timeSinceGameMs = nowMs - gameTimeMs
-                // If the game happened within the last 36 hours, show it. Otherwise show next week's game.
-                if (timeSinceGameMs in 0..(36L * 60 * 60 * 1000)) {
-                    return lastPostGame
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            val gameTimeMs = parseGameDateToMillis(dateStr)
+            val timeSinceGameMs = nowMs - gameTimeMs
+            if (timeSinceGameMs in 0..(36L * 60 * 60 * 1000)) {
+                return lastPostGame
             }
         }
 
-        // 3. Check for next upcoming game
+        // Check for next upcoming game
         val preGames = events.filter { it.competitions.firstOrNull()?.status?.type?.state == "pre" }
         val nextPreGame = preGames.firstOrNull()
         if (nextPreGame != null) return nextPreGame
 
-        // 4. Fallback to the last post game
+        // Fallback to the last post game
         return lastPostGame
     }
 

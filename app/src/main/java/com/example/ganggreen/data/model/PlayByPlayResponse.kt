@@ -4,12 +4,20 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PlayByPlayResponse(
+    val header: EventHeader? = null,
     val drives: Drives? = null,
     val predictor: Predictor? = null,
     val pickcenter: List<Pickcenter>? = null,
     val boxscore: Boxscore? = null,
     val scoringPlays: List<Play> = emptyList(),
     val winProbabilityHistory: List<WinProbability> = emptyList()
+)
+
+@Serializable
+data class EventHeader(
+    val id: String = "",
+    val week: Int = 0,
+    val competitions: List<Competition> = emptyList()
 )
 
 @Serializable

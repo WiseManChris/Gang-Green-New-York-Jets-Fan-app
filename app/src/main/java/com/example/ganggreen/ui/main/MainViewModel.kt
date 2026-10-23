@@ -1,6 +1,7 @@
 package com.example.ganggreen.ui.main
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import androidx.lifecycle.viewModelScope
@@ -8,6 +9,7 @@ import com.example.ganggreen.data.DataRepository
 import com.example.ganggreen.data.model.Event
 import com.example.ganggreen.data.model.RosterResponse
 import com.example.ganggreen.data.network.NewsItem
+import com.example.ganggreen.data.notification.GameNotificationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +17,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MainViewModel(private val repository: DataRepository = DataRepository()) : ViewModel() {
+class MainViewModel(
+    application: Application,
+    private val repository: DataRepository = DataRepository()
+) : AndroidViewModel(application) {
 
     
 
@@ -122,6 +127,10 @@ class MainViewModel(private val repository: DataRepository = DataRepository()) :
                 val event = repository.getJetsEvent()
                 _liveEvent.value = event
                 if (event != null) {
+                    if (event.status?.type?.state == "pre") {
+                        GameNotificationManager.scheduleKickoffAlarm(getApplication(), event)
+                    }
+                    GameNotificationManager.checkAndNotifyGameStatus(getApplication(), event)
                     try {
                         _playByPlayState.value = repository.getPlayByPlay(event.id)
                     } catch (e: Exception) { e.printStackTrace() }
@@ -149,10 +158,13 @@ class MainViewModel(private val repository: DataRepository = DataRepository()) :
                 try {
                     val event = repository.getJetsEvent()
                     _liveEvent.value = event
-                    if (event != null && event.status?.type?.state != "pre") {
-                        try {
-                            _playByPlayState.value = repository.getPlayByPlay(event.id)
-                        } catch (e: Exception) { e.printStackTrace() }
+                    if (event != null) {
+                        GameNotificationManager.checkAndNotifyGameStatus(getApplication(), event)
+                        if (event.status?.type?.state != "pre") {
+                            try {
+                                _playByPlayState.value = repository.getPlayByPlay(event.id)
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()

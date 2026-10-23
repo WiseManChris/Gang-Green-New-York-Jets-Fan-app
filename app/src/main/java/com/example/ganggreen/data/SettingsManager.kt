@@ -15,6 +15,7 @@ enum class AppTheme {
 class SettingsManager(private val context: Context) {
     companion object {
         val THEME_KEY = stringPreferencesKey("app_theme")
+        val KICKOFF_NOTIFICATIONS_KEY = booleanPreferencesKey("kickoff_notifications")
     }
 
     val themeFlow: Flow<AppTheme> = context.dataStore.data.map { prefs ->
@@ -25,6 +26,16 @@ class SettingsManager(private val context: Context) {
     suspend fun setTheme(theme: AppTheme) {
         context.dataStore.edit { prefs ->
             prefs[THEME_KEY] = theme.name
+        }
+    }
+
+    val kickoffNotificationsFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KICKOFF_NOTIFICATIONS_KEY] ?: true
+    }
+
+    suspend fun setKickoffNotifications(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KICKOFF_NOTIFICATIONS_KEY] = enabled
         }
     }
 }

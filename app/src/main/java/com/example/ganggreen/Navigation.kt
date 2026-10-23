@@ -57,9 +57,15 @@ val items = listOf(
 )
 
 @Composable
-fun MainNavigation(windowSizeClass: WindowSizeClass, viewModel: com.example.ganggreen.ui.main.MainViewModel, settingsManager: com.example.ganggreen.data.SettingsManager) {
+fun MainNavigation(
+    windowSizeClass: WindowSizeClass,
+    viewModel: com.example.ganggreen.ui.main.MainViewModel,
+    settingsManager: com.example.ganggreen.data.SettingsManager,
+    initialTab: String? = null
+) {
     val navController = rememberNavController()
     val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
+    val startRoute = if (initialTab == "live") Screen.Live.route else Screen.News.route
 
     Scaffold(
         bottomBar = {
@@ -120,7 +126,7 @@ fun MainNavigation(windowSizeClass: WindowSizeClass, viewModel: com.example.gang
                     }
                 }
             }
-            NavHost(navController, startDestination = Screen.News.route, modifier = Modifier.weight(1f)) {
+            NavHost(navController, startDestination = startRoute, modifier = Modifier.weight(1f)) {
                 composable(Screen.News.route) { NewsScreen(viewModel, settingsManager) }
                 composable(Screen.Roster.route) { RosterScreen(viewModel) }
                 composable(Screen.Injury.route) { InjuryScreen(viewModel) }

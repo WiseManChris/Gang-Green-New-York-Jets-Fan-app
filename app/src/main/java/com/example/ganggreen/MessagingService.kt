@@ -10,7 +10,6 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
-@androidx.compose.material3.ExperimentalMaterial3Api
 class MessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {

@@ -1,5 +1,6 @@
 package com.example.ganggreen.ui.main
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.animation.core.*
 
 
 import androidx.compose.foundation.clickable
@@ -216,9 +217,22 @@ fun SectionHeader(title: String) {
 
 @Composable
 fun GameHeader(event: Event, pbp: PlayByPlayResponse? = null) {
+    val pbpComp = pbp?.header?.competitions?.firstOrNull()
     val comp = event.competitions.firstOrNull() ?: return
-    val homeTeam = comp.competitors.find { it.homeAway == "home" }
-    val awayTeam = comp.competitors.find { it.homeAway == "away" }
+
+    val baseHomeTeam = comp.competitors.find { it.homeAway == "home" }
+    val baseAwayTeam = comp.competitors.find { it.homeAway == "away" }
+
+    val pbpHomeTeam = pbpComp?.competitors?.find { it.homeAway == "home" }
+    val pbpAwayTeam = pbpComp?.competitors?.find { it.homeAway == "away" }
+
+    val homeTeam = pbpHomeTeam ?: baseHomeTeam
+    val awayTeam = pbpAwayTeam ?: baseAwayTeam
+
+    val homeLogo = baseHomeTeam?.team?.displayLogo?.takeIf { it.isNotEmpty() } ?: (homeTeam?.team?.displayLogo ?: "")
+    val awayLogo = baseAwayTeam?.team?.displayLogo?.takeIf { it.isNotEmpty() } ?: (awayTeam?.team?.displayLogo ?: "")
+
+    val gameStatus = pbpComp?.status ?: event.status
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -235,32 +249,56 @@ fun GameHeader(event: Event, pbp: PlayByPlayResponse? = null) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    AsyncImage(model = awayTeam?.team?.displayLogo ?: "", contentDescription = null, modifier = Modifier.size(60.dp))
+                    AsyncImage(model = awayLogo, contentDescription = null, modifier = Modifier.size(60.dp))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(awayTeam?.team?.abbreviation ?: "", color = TextPrimary, fontWeight = FontWeight.Bold)
                     Text(awayTeam?.displayScore ?: "0", color = TextPrimary, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    if (event.status?.type?.state == "pre") {
+                    if (gameStatus?.type?.state == "pre") {
                         val dateStr = formatEspnDate(comp.date, "M/d - h:mm a z")
                         Text(dateStr, color = StatusRedText, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     } else {
-                        Text(event.status?.type?.shortDetail ?: "", color = StatusRedText, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (gameStatus?.type?.state == "in") {
+                                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                                val alpha by infiniteTransition.animateFloat(
+                                    initialValue = 1f,
+                                    targetValue = 0.2f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(800, easing = FastOutSlowInEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "pulseAlpha"
+                                )
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(StatusRedText.copy(alpha = alpha)))
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(gameStatus?.type?.shortDetail ?: "", color = StatusRedText, fontWeight = FontWeight.Bold)
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("AT", color = TextSecondary)
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    AsyncImage(model = homeTeam?.team?.displayLogo ?: "", contentDescription = null, modifier = Modifier.size(60.dp))
+                    AsyncImage(model = homeLogo, contentDescription = null, modifier = Modifier.size(60.dp))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(homeTeam?.team?.abbreviation ?: "", color = TextPrimary, fontWeight = FontWeight.Bold)
                     Text(homeTeam?.displayScore ?: "0", color = TextPrimary, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                 }
             }
+
+            val hasLinescores = (awayTeam?.linescores?.isNotEmpty() == true) || (homeTeam?.linescores?.isNotEmpty() == true)
+            if (gameStatus?.type?.state != "pre" && hasLinescores) {
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
+                Spacer(modifier = Modifier.height(10.dp))
+                LinescoreTable(awayTeam = awayTeam, homeTeam = homeTeam)
+            }
             
-            if (event.status?.type?.state == "in" && pbp != null) {
+            if (gameStatus?.type?.state == "in" && pbp != null) {
                 val currentDrive = pbp.drives?.current
                 val lastPlay = currentDrive?.plays?.lastOrNull()
                 val situation = lastPlay?.end ?: lastPlay?.start
@@ -295,6 +333,40 @@ fun GameHeader(event: Event, pbp: PlayByPlayResponse? = null) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LinescoreTable(awayTeam: com.example.ganggreen.data.model.Competitor?, homeTeam: com.example.ganggreen.data.model.Competitor?) {
+    val awayScores = awayTeam?.linescores ?: emptyList()
+    val homeScores = homeTeam?.linescores ?: emptyList()
+    val quarterCount = maxOf(4, awayScores.size, homeScores.size)
+
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("TEAM", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(2f))
+            for (q in 1..quarterCount) {
+                val label = if (q <= 4) "$q" else "OT${if (q > 5) "${q-4}" else ""}"
+                Text(label, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.weight(1f))
+            }
+            Text("T", color = JetsGreenLight, fontSize = 11.sp, fontWeight = FontWeight.Black, textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1.2f))
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        LinescoreRow(awayTeam?.team?.abbreviation ?: "AWAY", awayScores, awayTeam?.displayScore ?: "0", quarterCount)
+        Spacer(modifier = Modifier.height(4.dp))
+        LinescoreRow(homeTeam?.team?.abbreviation ?: "HOME", homeScores, homeTeam?.displayScore ?: "0", quarterCount)
+    }
+}
+
+@Composable
+fun LinescoreRow(teamAbbr: String, linescores: List<com.example.ganggreen.data.model.Linescore>, total: String, quarterCount: Int) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(teamAbbr, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(2f))
+        for (q in 0 until quarterCount) {
+            val scoreVal = linescores.getOrNull(q)?.displayValue ?: "-"
+            Text(scoreVal, color = TextSecondary, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.weight(1f))
+        }
+        Text(total, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Black, textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1.2f))
     }
 }
 
