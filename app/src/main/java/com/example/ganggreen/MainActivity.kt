@@ -30,9 +30,13 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
-    GameNotificationManager.createNotificationChannel(this)
+    try {
+        GameNotificationManager.createNotificationChannel(this)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 
-    val initialTab = intent.getStringExtra("open_tab")
+    val initialTab = intent?.getStringExtra("open_tab")
     val settingsManager = com.example.ganggreen.data.SettingsManager(this)
 
     setContent {

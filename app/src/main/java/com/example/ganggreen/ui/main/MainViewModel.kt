@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MainViewModel(
+class MainViewModel @JvmOverloads constructor(
     application: Application,
     private val repository: DataRepository = DataRepository()
 ) : AndroidViewModel(application) {

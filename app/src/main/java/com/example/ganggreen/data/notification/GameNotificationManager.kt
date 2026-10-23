@@ -23,19 +23,23 @@ object GameNotificationManager {
     const val NOTIFICATION_ID_LIVE = 1002
 
     fun createNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Real-time alerts when New York Jets games kickoff or start"
-                enableLights(true)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 300, 200, 300)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Real-time alerts when New York Jets games kickoff or start"
+                    enableLights(true)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 300, 200, 300)
+                }
+                notificationManager?.createNotificationChannel(channel)
             }
-            notificationManager.createNotificationChannel(channel)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -78,56 +82,64 @@ object GameNotificationManager {
     }
 
     fun showGameAlert(context: Context, title: String, message: String, notificationId: Int = NOTIFICATION_ID_KICKOFF) {
-        createNotificationChannel(context)
+        try {
+            createNotificationChannel(context)
 
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("open_tab", "live")
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("open_tab", "live")
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                notificationId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_EVENT)
+                .setSound(defaultSoundUri)
+                .setVibrate(longArrayOf(0, 300, 200, 300))
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.notify(notificationId, builder.build())
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_EVENT)
-            .setSound(defaultSoundUri)
-            .setVibrate(longArrayOf(0, 300, 200, 300))
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, builder.build())
     }
 
     fun checkAndNotifyGameStatus(context: Context, event: Event) {
-        val state = event.status?.type?.state ?: event.competitions.firstOrNull()?.status?.type?.state ?: return
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val key = PREF_LAST_NOTIFIED_STATE + event.id
-        val lastState = prefs.getString(key, null)
+        try {
+            val state = event.status?.type?.state ?: event.competitions.firstOrNull()?.status?.type?.state ?: return
+            val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val key = PREF_LAST_NOTIFIED_STATE + event.id
+            val lastState = prefs.getString(key, null)
 
-        if (state == "in" && lastState != "in") {
-            prefs.edit().putString(key, "in").apply()
-            val comp = event.competitions.firstOrNull()
-            val away = comp?.competitors?.find { it.homeAway == "away" }?.team?.displayName ?: "Away"
-            val home = comp?.competitors?.find { it.homeAway == "home" }?.team?.displayName ?: "Home"
-            val title = "🚨 GAME IS LIVE!"
-            val message = "$away at $home has started! Tap to view live play-by-play and scores."
-            showGameAlert(context, title, message, NOTIFICATION_ID_LIVE)
-        } else if (state == "post" && lastState != "post") {
-            prefs.edit().putString(key, "post").apply()
-        } else if (lastState == null && state == "pre") {
-            prefs.edit().putString(key, "pre").apply()
+            if (state == "in" && lastState != "in") {
+                prefs.edit().putString(key, "in").apply()
+                val comp = event.competitions.firstOrNull()
+                val away = comp?.competitors?.find { it.homeAway == "away" }?.team?.displayName ?: "Away"
+                val home = comp?.competitors?.find { it.homeAway == "home" }?.team?.displayName ?: "Home"
+                val title = "🚨 GAME IS LIVE!"
+                val message = "$away at $home has started! Tap to view live play-by-play and scores."
+                showGameAlert(context, title, message, NOTIFICATION_ID_LIVE)
+            } else if (state == "post" && lastState != "post") {
+                prefs.edit().putString(key, "post").apply()
+            } else if (lastState == null && state == "pre") {
+                prefs.edit().putString(key, "pre").apply()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

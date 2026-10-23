@@ -51,4 +51,10 @@ class ApiTest {
         println("Upcoming Game: ${event?.name} at $kickoffMs (${dateStr})")
         assert(kickoffMs > 0L)
     }
+
+    @Test
+    fun testMainViewModelConstructor() {
+        val constructor = com.example.ganggreen.ui.main.MainViewModel::class.java.getConstructor(android.app.Application::class.java)
+        assert(constructor != null)
+    }
 }
